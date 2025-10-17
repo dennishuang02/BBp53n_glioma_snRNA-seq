@@ -1,0 +1,89 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r}
+library(VennDiagram)
+library(VennDetail)
+library(dplyr)
+```
+
+
+
+
+```{r}
+early_diffexp <- read.csv("C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Sept_2025_Analysis/diffExp_early OPCLIKEvsOPC_samples.csv", row.names = "X")
+
+late_diffexp <- read.csv("C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Sept_2025_Analysis/diffExp_late OPCLIKEvsOPC_samples.csv", row.names = "X")
+
+early_genes <- rownames(dplyr::filter(early_diffexp, adj.P.Val <= 0.01 & logFC >= 1))
+
+late_genes <- rownames(dplyr::filter(late_diffexp, adj.P.Val <= 0.01 & logFC >= 1))
+
+Venn <- venndetail(list(early = early_genes, late = late_genes))
+plot(Venn, type = "upset")
+
+detail(Venn)
+write.csv(getSet(Venn), file = "earlyLate_OPClike_venn_Results.csv")
+```
+
+
+OPC_only <- 1149
+OPC_like_only <- 115
+Shared <- 918
+
+# Draw proportional Venn diagram
+venn.plot <- draw.pairwise.venn(
+  area1 = OPC_only + Shared,       # Total in OPC
+  area2 = OPC_like_only + Shared,  # Total in OPC.like
+  cross.area = Shared,             # Intersection
+  category = c("OPC", "OPC.like"),
+  fill = c("skyblue", "pink"),
+  alpha = c(0.5, 0.5),
+  lty = "blank",
+  cex = 2,
+  cat.cex = 2,
+  cat.pos = c(-20, 20),
+  scaled = TRUE                    # Ensures proportional areas
+)
+
+```{r}
+earlyOPC.like_unique <- 1339
+lateOPC.like_unique <- 63
+Shared <- 120
+
+vennPlot <- draw.pairwise.venn(area1 = earlyOPC.like_unique + Shared,
+                   area2 = lateOPC.like_unique + Shared,
+                   category = c("Early OPC-like", "Late OPC-like"),
+                   cross.area = Shared,
+                   alpha = c(0.7,0.7),
+                   fill = c("#77459B", "#A2AED8"),
+                   scaled = TRUE, 
+                   cat.cex = 2.5,
+                   cex = 2,
+                   cat.pos = c(0,220))
+
+grid.newpage()
+grid.draw(vennPlot)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

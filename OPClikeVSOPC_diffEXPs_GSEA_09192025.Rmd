@@ -1,0 +1,897 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+```{r}
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+library(RColorBrewer)
+```
+
+```{r}
+setwd("C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/")
+
+#BBp53n_OPCs <- Read10X(data.dir = "filtered_cellranger_output/BBp53n_OPCs/")
+
+nBrain <- Read10X(data.dir = "../10X_5KadultMouse/5k_mouse_brain_CNIK_3pv3_raw_feature_bc_matrix/")
+nBrain_seurat <- CreateSeuratObject(counts = nBrain, project = "normal Brain", min.features = 150)
+nBrain_seurat[["percent.mt"]] <- PercentageFeatureSet(nBrain_seurat, pattern = "^mt-")
+nBrain_subset <- subset(nBrain_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000 & percent.mt < 10)
+
+Early_L2 <- Read10X(data.dir = "filtered_cellranger_output/Early-stage L2/")
+Early_L2_seurat <- CreateSeuratObject(counts = Early_L2, project = "Early_L2", min.features = 150)
+Early_L2_seurat[["percent.mt"]] <- PercentageFeatureSet(Early_L2_seurat, pattern = "^mt-")
+Early_L2_subset <- subset(Early_L2_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Early_R2L3 <- Read10X(data.dir = "filtered_cellranger_output/Early-stage R2L3/")
+Early_R2L3_seurat <- CreateSeuratObject(counts = Early_R2L3, project = "Early_R2L3", min.features = 150)
+Early_R2L3_seurat[["percent.mt"]] <- PercentageFeatureSet(Early_R2L3_seurat, pattern = "^mt-")
+Early_R2L3_subset <- subset(Early_R2L3_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Early_R2L5 <- Read10X(data.dir = "filtered_cellranger_output/Early-stage R2L5/")
+Early_R2L5_seurat <- CreateSeuratObject(counts = Early_R2L5, project = "Early_R2L5", min.features = 150)
+Early_R2L5_seurat[["percent.mt"]] <- PercentageFeatureSet(Early_R2L5_seurat, pattern = "^mt-")
+Early_R2L5_subset <- subset(Early_R2L5_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Late_L3 <- Read10X(data.dir = "filtered_cellranger_output/Late-stage L3/")
+Late_L3_seurat <- CreateSeuratObject(counts = Late_L3, project = "Late_L3", min.features = 150)
+Late_L3_seurat[["percent.mt"]] <- PercentageFeatureSet(Late_L3_seurat, pattern = "^mt-")
+Late_L3_subset <- subset(Late_L3_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Late_L5 <- Read10X(data.dir = "filtered_cellranger_output/Late-stage L5/")
+Late_L5_seurat <- CreateSeuratObject(counts = Late_L5, project = "Late_L5", min.features = 150)
+Late_L5_seurat[["percent.mt"]] <- PercentageFeatureSet(Late_L5_seurat, pattern = "^mt-")
+Late_L5_subset <- subset(Late_L5_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Late_R2L2 <- Read10X(data.dir = "filtered_cellranger_output/Late-stage R2L2/")
+Late_R2L2_seurat <- CreateSeuratObject(counts = Late_R2L2, project = "Late_R2L2", min.features = 150)
+Late_R2L2_seurat[["percent.mt"]] <- PercentageFeatureSet(Late_R2L2_seurat, pattern = "^mt-")
+Late_R2L2_subset <- subset(Late_R2L2_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Late_L3_subset <- subset(Late_L3_subset, cells = sample(names(Late_L3_seurat$orig.ident), size = 15000))
+Late_L5_subset <- subset(Late_L5_subset, cells = sample(names(Late_L5_seurat$orig.ident), size = 15000))
+Late_R2L2_subset <- subset(Late_R2L2_subset, cells = sample(names(Late_R2L2_seurat$orig.ident), size = 15000))
+```
+
+```{r}
+#VlnPlot(nBrain_subset, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"))
+
+nBrain_subset <- subset(nBrain_subset, cells = sample(names(nBrain_subset$orig.ident), size = 5000))
+```
+
+```{r}
+remove(Early_L2)
+remove(Early_L2_seurat)
+remove(Early_R2L3)
+remove(Early_R2L3_seurat)
+remove(Early_R2L5)
+remove(Early_R2L5_seurat)
+
+remove(nBrain)
+remove(nBrain_seurat)
+
+remove(Late_L3)
+remove(Late_L3_seurat)
+remove(Late_L5)
+remove(Late_L5_seurat)
+remove(Late_R2L2)
+remove(Late_R2L2_seurat)
+```
+
+
+```{r}
+Tumors.merged <- merge(x = Early_R2L3_subset, 
+                       y = c(Early_R2L5_subset, Early_L2_subset,
+                             Late_L3_subset, Late_L5_subset, Late_R2L2_subset),
+                       add.cell.ids = c("Early_R2L3", "Early_R2L5", "Early_L2",
+                                        "Late_L3", "Late_L5", "Late_R2L2"),
+                       project = "BBp53n Tumors")
+
+Tumors.merged@meta.data$tissue <- "NA"
+
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Early_L2", ]$tissue <- "Early-Tumors"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Early_R2L3", ]$tissue <- "Early-Tumors"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Early_R2L5", ]$tissue <- "Early-Tumors"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Late_L3", ]$tissue <- "Late-Tumors"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Late_L5", ]$tissue <- "Late-Tumors"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Late_R2L2", ]$tissue <- "Late-Tumors"
+#Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "normal Brain", ]$tissue <- "normal-tissue"
+
+
+
+#Late_L2.merged[["RNA"]] <- split(Late_L2.merged[["RNA"]], f = Late_L2.merged$tissue)
+#Late_L2.merged
+table(Tumors.merged$orig.ident)
+```
+
+```{r}
+res <- 1.0
+ndims <- 20
+vars.reg <- c('nCount_RNA')
+
+Tumors.merged <- NormalizeData(Tumors.merged, normalization.method = "LogNormalize", scale.factor = 1000)
+Tumors.merged <- FindVariableFeatures(Tumors.merged, selection.method = "vst", nfeatures = 3000)
+
+hvg <- VariableFeatures(Tumors.merged)
+var_regex = 'Rik$|^mt|^Gm' # remove pseudo, predicted, mitochondria genes from clustering analysis
+hvg = grep(var_regex, hvg, invert = T, value=T)
+hvg
+```
+
+
+
+```{r}
+Tumors.merged %<>%
+  ScaleData(vars.to.regress = vars.reg) %>%
+  RunPCA(features = hvg, npcs = 50) %>%
+  FindNeighbors(dims = 1:ndims) %>%
+  FindClusters(resolution = res) %>%
+  RunUMAP(dims = 1:ndims, reduction = "pca", n.neighbors = 200)
+
+DimHeatmap(Tumors.merged, dims = 1:9, cells = 500, balanced = T)
+
+DimPlot(Tumors.merged, reduction = "umap", group.by = "orig.ident", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Tumors merged") +
+  theme_bw(base_size = 10)
+
+Tumors.merged <- IntegrateLayers(object = Tumors.merged, 
+                                   method = RPCAIntegration,
+                                   orig.reduction = "pca", 
+                                   new.reduction = "rpca",
+                                   verbose = TRUE)
+
+Tumors.merged <- FindNeighbors(Tumors.merged, reduction = "rpca", dims = 1:20)
+Tumors.merged <- FindClusters(Tumors.merged, resolution = 1)
+Tumors.merged <- RunUMAP(Tumors.merged, reduction = "rpca", dims = 1:20, n.neighbors = 100)
+
+
+DimPlot(Tumors.merged, reduction = "umap", group.by = "seurat_clusters", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Tumors merged - RPCA") +
+  theme_bw(base_size = 10)
+DimPlot(Tumors.merged, reduction = "umap", group.by = "orig.ident", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Tumors merged - RPCA") +
+  theme_bw(base_size = 10)
+DimPlot(Tumors.merged, reduction = "umap", split.by = "tissue", label = TRUE, label.box = FALSE, raster = FALSE, pt.size = 0.5) +
+  ggtitle("Tumors merged - RPCA") +
+  theme_bw(base_size = 15)
+
+
+DimPlot(Tumors.merged, reduction = "umap", group.by = "tissue", label = TRUE, label.box = TRUE, raster = FALSE, pt.size = 0.5, alpha = 0.1, cols = c("#F8766D", "#00BF7D")) +
+  ggtitle("") +
+  theme_bw(base_size = 15)
+
+```
+
+```{r}
+Tumors.merged <- JoinLayers(Tumors.merged)
+library(future)
+library(Azimuth)
+plan("multicore", workers = 4)
+options(future.globals.maxSize = 8000 * 1024^4)
+Tumors.merged <- RunAzimuth(Tumors.merged, reference = "mousecortexref")
+
+#Idents(Tumors.Tumors.merged) <- "predicted.subclass"
+DimPlot(Tumors.merged, group.by = "predicted.class", label = TRUE, label.box = TRUE) &
+  ggtitle("Tumors.merged Neuron Annotation")
+
+DimPlot(Tumors.merged, group.by = "predicted.subclass", label = TRUE, label.box = FALSE) &
+  ggtitle("Tumors.merged CNS Annotation")
+DimPlot(Tumors.merged, group.by = "predicted.subclass", split.by = "orig.ident", label = FALSE, label.box = FALSE, ncol = 3, pt.size = 1) &
+  ggtitle("Tumors.merged CNS Annotation")
+
+DimPlot(Tumors.merged, reduction = "umap", group.by = "seurat_clusters", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Tumors merged") +
+  theme_bw(base_size = 10)
+DimPlot(Tumors.merged, reduction = "umap", split.by = "orig.ident", label = TRUE, pt.size = 0.5, ncol = 3)  +
+  ggtitle("Tumors merged") 
+DimPlot(Tumors.merged, reduction = "umap", group.by = "predicted.subclass", label = TRUE, pt.size = 0.5)  +
+  ggtitle("Tumors merged") 
+```
+
+```{r}
+gene_sets <- read.csv("C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Genesets/all_genesets.csv", na.strings = "none")
+
+Tumors.merged[["joined"]] <- JoinLayers(Tumors.merged[["RNA"]])
+DefaultAssay(Tumors.merged) <- "joined"
+
+for (x in 1:length(colnames(gene_sets))) {
+  Tumors.merged <- AddModuleScore(Tumors.merged, assay = "joined", features = list(gene_sets[gene_sets[,x] != "", x]),name = colnames(gene_sets)[x])
+}
+
+FeaturePlot(Tumors.merged, features = c("OPC1"), reduction = "umap", split.by = "tissue", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+FeaturePlot(Tumors.merged, features = c("Cell.Cycle.comb1"), reduction = "umap", split.by = "tissue", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+
+FeaturePlot(Tumors.merged, features = c("BBp53n.Glioma1"), reduction = "umap",split.by = "tissue", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+library(viridis)
+FeaturePlot(Tumors.merged, features = c("Olig1", "Olig2", "Pdgfra", "Cspg4"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Sox2", "Nes", "Top2a", "Mki67"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("P2ry10", "Ankrd7", "Dmrt3", "Mkrn3"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+```
+
+
+
+
+
+Normal brain dataset
+```{r}
+nBrain_subset %<>%
+  NormalizeData(normalization.method = "LogNormalize", scale.factor = 1000) %>%
+  FindVariableFeatures(selection.method = "vst", nfeatures = 3000) %>%
+  ScaleData(vars.to.regress = vars.reg) %>%
+  RunPCA(features = hvg, npcs = 50) %>%
+  FindNeighbors(dims = 1:ndims) %>%
+  FindClusters(resolution = res) %>%
+  RunUMAP(dims = 1:ndims, reduction = "pca", n.neighbors = 200)
+
+DimHeatmap(nBrain_subset, dims = 1:9, cells = 500, balanced = T)
+
+DimPlot(nBrain_subset, reduction = "umap", group.by = "seurat_clusters", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Normal Brain") +
+  theme_bw(base_size = 10)
+
+nBrain_subset <- JoinLayers(nBrain_subset)
+library(future)
+library(Azimuth)
+plan("multicore", workers = 4)
+options(future.globals.maxSize = 8000 * 1024^4)
+nBrain_subset <- RunAzimuth(nBrain_subset, reference = "mousecortexref")
+
+nBrain_subset[["joined"]] <- JoinLayers(nBrain_subset[["RNA"]])
+DefaultAssay(nBrain_subset) <- "joined"
+
+for (x in 1:length(colnames(gene_sets))) {
+  nBrain_subset <- AddModuleScore(nBrain_subset, assay = "joined", features = list(gene_sets[gene_sets[,x] != "", x]),name = colnames(gene_sets)[x])
+}
+
+DimPlot(nBrain_subset, reduction = "umap", group.by = "predicted.subclass", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Normal Brain") +
+  theme_bw(base_size = 10)
+```
+
+
+
+```{r}
+#Idents(Tumors.merged) <- "seurat_clusters"
+#Tumors.markers <- FindAllMarkers(Tumors.merged,
+#                                        assay = "joined",
+#                                        logfc.threshold = 1,
+#                                        only.pos = TRUE)
+```
+
+
+Calculate cell type ratios
+```{r}
+gene_sigs <- colnames(Tumors.merged@meta.data)[17:38]
+
+Glut_neurons <- rownames(Tumors.merged@meta.data[Tumors.merged@meta.data$predicted.subclass %in% c("L2/3 IT", "L5 ET", "L5 IT", "L5/6 NP", "L6 CT", "L6 IT", "L6 IT Car3","L6b"), ])
+
+GABA_neurons <- rownames(Tumors.merged@meta.data[Tumors.merged@meta.data$predicted.subclass %in% c("Lamp5", "Meis2", "Pvalb", "Sncg", "Sst", "Sst Chodl", "Vip"), ])
+
+Tumors.merged@meta.data$celltype <- Tumors.merged@meta.data$predicted.subclass
+
+Tumors.merged@meta.data[Glut_neurons, ]$celltype <- "Glutamatergic Neuron"
+Tumors.merged@meta.data[GABA_neurons, ]$celltype <- "GABAergic Neuron"
+
+Tumors.merged@meta.data[rownames(filter(Tumors.merged@meta.data, predicted.subclass.score <= 0.75 & mapping.score <= 0.75 & OPC1 >= quantile(Tumors.merged@meta.data$OPC1)[2])), ]$celltype <- "OPC-like"
+
+
+Glut_neurons <- rownames(nBrain_subset@meta.data[nBrain_subset@meta.data$predicted.subclass %in% c("L2/3 IT", "L5 ET", "L5 IT", "L5/6 NP", "L6 CT", "L6 IT", "L6 IT Car3","L6b"), ])
+
+GABA_neurons <- rownames(nBrain_subset@meta.data[nBrain_subset@meta.data$predicted.subclass %in% c("Lamp5", "Meis2", "Pvalb", "Sncg", "Sst", "Sst Chodl", "Vip"), ])
+
+nBrain_subset@meta.data$celltype <- nBrain_subset@meta.data$predicted.subclass
+
+nBrain_subset@meta.data[Glut_neurons, ]$celltype <- "Glutamatergic Neuron"
+nBrain_subset@meta.data[GABA_neurons, ]$celltype <- "GABAergic Neuron"
+
+#nBrain_subset@meta.data[rownames(filter(nBrain_subset@meta.data, predicted.subclass.score <= 0.75 & mapping.score <= 0.75)), ]$celltype <- "OPC-like"
+
+```
+
+
+
+```{r}
+remove(Early_L2_subset)
+remove(Early_R2L3_subset)
+remove(Early_R2L5_subset)
+
+remove(Late_L3_subset)
+remove(Late_L5_subset)
+remove(Late_R2L2_subset)
+```
+
+
+
+```{r}
+#write.csv(Tumors.merged@meta.data, file = "C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/May_2025_Analysis/TumorsMerged.metadata.csv")
+```
+
+
+```{r}
+colnames(Tumors.merged@meta.data)
+
+early_OPClike_cells <- rownames(dplyr::filter(Tumors.merged@meta.data, celltype == "OPC-like" & tissue == "Early-Tumors"))  
+
+early_OPC_cells <- rownames(dplyr::filter(Tumors.merged@meta.data, celltype == "OPC" & tissue == "Early-Tumors"))    
+
+late_OPClike_cells <- rownames(dplyr::filter(Tumors.merged@meta.data, celltype == "OPC-like" & tissue == "Late-Tumors"))  
+
+late_OPC_cells <- rownames(dplyr::filter(Tumors.merged@meta.data, celltype == "OPC" & tissue == "Late-Tumors"))   
+
+
+```
+
+
+diffExp and GSEA for early OPC-like and OPC
+```{r}
+
+
+
+early_OPClike_cells <- split(early_OPClike_cells, sample(3, length(early_OPClike_cells), replace = TRUE))
+
+early_OPClike_subset1 <- subset(Tumors.merged, cells = early_OPClike_cells$`1`)
+early_OPClike_subset1 <- JoinLayers(early_OPClike_subset1)
+early_OPClike_subset2 <- subset(Tumors.merged, cells = early_OPClike_cells$`2`)
+early_OPClike_subset2 <- JoinLayers(early_OPClike_subset2)
+early_OPClike_subset3 <- subset(Tumors.merged, cells = early_OPClike_cells$`3`)
+early_OPClike_subset3 <- JoinLayers(early_OPClike_subset3)
+
+early_OPClike_bulk_counts <- data.frame(Genes = names(rowSums(early_OPClike_subset1[["RNA"]]$counts)),
+                                  early_OPClike_1 = rowSums(early_OPClike_subset1[["RNA"]]$counts),
+                                  early_OPClike_2 = rowSums(early_OPClike_subset2[["RNA"]]$counts),
+                                  early_OPClike_3 = rowSums(early_OPClike_subset3[["RNA"]]$counts))
+
+remove(early_OPClike_subset1)
+remove(early_OPClike_subset2)
+remove(early_OPClike_subset3)
+
+early_OPC_cells <- split(early_OPC_cells, sample(3, length(early_OPC_cells), replace = TRUE))
+
+early_OPC_subset1 <- subset(Tumors.merged, cells = early_OPC_cells$`1`)
+early_OPC_subset1 <- JoinLayers(early_OPC_subset1)
+early_OPC_subset2 <- subset(Tumors.merged, cells = early_OPC_cells$`2`)
+early_OPC_subset2 <- JoinLayers(early_OPC_subset2)
+early_OPC_subset3 <- subset(Tumors.merged, cells = early_OPC_cells$`3`)
+early_OPC_subset3 <- JoinLayers(early_OPC_subset3)
+
+early_OPC_bulk_counts <- data.frame(Genes = names(rowSums(early_OPC_subset1[["RNA"]]$counts)),
+                                  early_OPC_1 = rowSums(early_OPC_subset1[["RNA"]]$counts),
+                                  early_OPC_2 = rowSums(early_OPC_subset2[["RNA"]]$counts),
+                                  early_OPC_3 = rowSums(early_OPC_subset3[["RNA"]]$counts))
+
+remove(early_OPC_subset1)
+remove(early_OPC_subset2)
+remove(early_OPC_subset3)
+```
+
+```{r}
+bulk_Counts <- left_join(early_OPClike_bulk_counts, early_OPC_bulk_counts, by = "Genes", keep = TRUE)
+
+rownames(bulk_Counts) <- bulk_Counts$Genes.x
+
+bulk_Counts <- bulk_Counts[, -c(1,5)]
+
+
+```
+
+```{r}
+library(edgeR)
+d0 <- DGEList(bulk_Counts)
+d0 <- calcNormFactors(d0)
+d0
+cutoff <- 1
+drop <- which(apply(cpm(d0), 1, max) < cutoff)
+d <- d0[-drop,]
+dim(d)
+group <- c(rep("OPC.like", 3), rep("OPC", 3))
+factor(group)
+d$samples$group <- group
+plotMDS(d, col = as.numeric(group))
+
+mm <- model.matrix(~0+group)
+y <- voom(d, mm, plot = T)
+
+fit <- lmFit(y, mm)
+head(coef(fit))
+
+contr <- makeContrasts(groupOPC.like - groupOPC, levels = colnames(coef(fit)))
+contr
+
+tmp <- contrasts.fit(fit, contr)
+tmp <- eBayes(tmp)
+
+diff.table <- topTable(tmp, sort.by = "P", n = Inf)
+#write.csv(diff.table, file = "C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Sept_2025_Analysis/diffExp_early OPCLIKEvsOPC_samples.csv")
+```
+GSEA for early OPC-like and OPC
+```{r}
+library(dplyr)
+diff.table <- filter(diff.table, adj.P.Val <= 0.001)
+
+
+#write.csv(diff.table, file = "C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/April_2025_Analysis/diffExp_limma CYCvsQUI_filtered.csv")
+
+
+library(clusterProfiler)
+library(org.Mm.eg.db)
+library(tidyr)
+
+rownames(diff.table)
+
+symbols <- bitr(rownames(diff.table), fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db, drop = FALSE)
+
+diff.table$SYMBOL <- rownames(diff.table)
+diff.table <- left_join(diff.table, symbols, by = "SYMBOL")
+
+diff.table <- drop_na(diff.table)
+
+geneList <- diff.table[order(diff.table$logFC, decreasing = TRUE), ]$logFC
+names(geneList) <- diff.table[order(diff.table$logFC, decreasing = TRUE), ]$ENTREZID
+
+
+
+early_gsea <- gseGO(geneList = geneList,
+                       ont = "BP",
+                       OrgDb = org.Mm.eg.db,
+                       keyType = "ENTREZID",
+                       minGSSize = 10,
+                       maxGSSize = 500,
+                       pvalueCutoff = 0.1)
+early_gsea <- setReadable(early_gsea, OrgDb = org.Mm.eg.db, keyType = "ENTREZID")
+
+View(as.data.frame(early_gsea))
+
+
+
+#write.csv(as.data.frame(gsea), file = "C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Sept_2025_Analysis/gsea_early_OPClikeVSOPC_09192025.csv")
+```
+
+
+
+diffExp and GSEA for late OPC-like and OPC
+```{r}
+
+
+
+late_OPClike_cells <- split(late_OPClike_cells, sample(3, length(late_OPClike_cells), replace = TRUE))
+
+late_OPClike_subset1 <- subset(Tumors.merged, cells = late_OPClike_cells$`1`)
+late_OPClike_subset1 <- JoinLayers(late_OPClike_subset1)
+late_OPClike_subset2 <- subset(Tumors.merged, cells = late_OPClike_cells$`2`)
+late_OPClike_subset2 <- JoinLayers(late_OPClike_subset2)
+late_OPClike_subset3 <- subset(Tumors.merged, cells = late_OPClike_cells$`3`)
+late_OPClike_subset3 <- JoinLayers(late_OPClike_subset3)
+
+late_OPClike_bulk_counts <- data.frame(Genes = names(rowSums(late_OPClike_subset1[["RNA"]]$counts)),
+                                  late_OPClike_1 = rowSums(late_OPClike_subset1[["RNA"]]$counts),
+                                  late_OPClike_2 = rowSums(late_OPClike_subset2[["RNA"]]$counts),
+                                  late_OPClike_3 = rowSums(late_OPClike_subset3[["RNA"]]$counts))
+
+remove(late_OPClike_subset1)
+remove(late_OPClike_subset2)
+remove(late_OPClike_subset3)
+
+late_OPC_cells <- split(late_OPC_cells, sample(3, length(late_OPC_cells), replace = TRUE))
+
+late_OPC_subset1 <- subset(Tumors.merged, cells = late_OPC_cells$`1`)
+late_OPC_subset1 <- JoinLayers(late_OPC_subset1)
+late_OPC_subset2 <- subset(Tumors.merged, cells = late_OPC_cells$`2`)
+late_OPC_subset2 <- JoinLayers(late_OPC_subset2)
+late_OPC_subset3 <- subset(Tumors.merged, cells = late_OPC_cells$`3`)
+late_OPC_subset3 <- JoinLayers(late_OPC_subset3)
+
+late_OPC_bulk_counts <- data.frame(Genes = names(rowSums(late_OPC_subset1[["RNA"]]$counts)),
+                                  late_OPC_1 = rowSums(late_OPC_subset1[["RNA"]]$counts),
+                                  late_OPC_2 = rowSums(late_OPC_subset2[["RNA"]]$counts),
+                                  late_OPC_3 = rowSums(late_OPC_subset3[["RNA"]]$counts))
+
+remove(late_OPC_subset1)
+remove(late_OPC_subset2)
+remove(late_OPC_subset3)
+```
+
+```{r}
+bulk_Counts <- left_join(late_OPClike_bulk_counts, late_OPC_bulk_counts, by = "Genes", keep = TRUE)
+
+rownames(bulk_Counts) <- bulk_Counts$Genes.x
+
+bulk_Counts <- bulk_Counts[, -c(1,5)]
+
+
+```
+GSEA for late OPC-like and OPC
+```{r}
+library(edgeR)
+d0 <- DGEList(bulk_Counts)
+d0 <- calcNormFactors(d0)
+d0
+cutoff <- 1
+drop <- which(apply(cpm(d0), 1, max) < cutoff)
+d <- d0[-drop,]
+dim(d)
+group <- c(rep("OPC.like", 3), rep("OPC", 3))
+factor(group)
+d$samples$group <- group
+plotMDS(d, col = as.numeric(group))
+
+mm <- model.matrix(~0+group)
+y <- voom(d, mm, plot = T)
+
+fit <- lmFit(y, mm)
+head(coef(fit))
+
+contr <- makeContrasts(groupOPC.like - groupOPC, levels = colnames(coef(fit)))
+contr
+
+tmp <- contrasts.fit(fit, contr)
+tmp <- eBayes(tmp)
+
+diff.table <- topTable(tmp, sort.by = "P", n = Inf)
+#write.csv(diff.table, file = "C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Sept_2025_Analysis/diffExp_late OPCLIKEvsOPC_samples.csv")
+```
+
+```{r}
+library(dplyr)
+diff.table <- filter(diff.table, adj.P.Val <= 0.001)
+
+
+#write.csv(diff.table, file = "C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/April_2025_Analysis/diffExp_limma CYCvsQUI_filtered.csv")
+
+
+library(clusterProfiler)
+library(org.Mm.eg.db)
+library(tidyr)
+
+rownames(diff.table)
+
+symbols <- bitr(rownames(diff.table), fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db, drop = FALSE)
+
+diff.table$SYMBOL <- rownames(diff.table)
+diff.table <- left_join(diff.table, symbols, by = "SYMBOL")
+
+diff.table <- drop_na(diff.table)
+
+geneList <- diff.table[order(diff.table$logFC, decreasing = TRUE), ]$logFC
+names(geneList) <- diff.table[order(diff.table$logFC, decreasing = TRUE), ]$ENTREZID
+
+
+
+late_gsea <- gseGO(geneList = geneList,
+                       ont = "BP",
+                       OrgDb = org.Mm.eg.db,
+                       keyType = "ENTREZID",
+                       minGSSize = 10,
+                       maxGSSize = 500,
+                       pvalueCutoff = 0.1)
+late_gsea <- setReadable(late_gsea, OrgDb = org.Mm.eg.db, keyType = "ENTREZID")
+
+View(as.data.frame(late_gsea))
+
+
+
+#write.csv(as.data.frame(gsea), file = "C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Sept_2025_Analysis/gsea_late_OPClikeVSOPC_09192025.csv")
+```
+
+
+Early
+GO:0007268
+GO:0098916
+GO:0060078
+GO:0007631
+GO:0007218
+GO:0140014
+GO:1903047
+GO:0000280
+GO:0000070
+GO:0000819
+
+
+Late
+"GO:0048167",
+                    "GO:0071868",
+                    "GO:0099536",
+                    "GO:0099537",
+                    "GO:0042391",
+                    "GO:1903047",
+                    "GO:0140014",
+                    "GO:0072089",
+                    "GO:0000278",
+                    "GO:0051276"
+```{r}
+desc <- early_gsea[c("GO:0007268",
+                     "GO:0098916",
+                     "GO:0060078",
+                     "GO:0007631",
+                     "GO:0007218",
+                     "GO:0140014",
+                     "GO:1903047",
+                     "GO:0000280",
+                     "GO:0000070",
+                     "GO:0000819"), ]$Description
+#mutate(gsea_BBvsCTRL, qscore = -log(p.adjust, base=10)) %>% 
+#    barplot(x="qscore")
+library(DOSE)
+library(enrichplot)
+dotplot(early_gsea, x = "NES", showCategory = desc) +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour = "black", size = 1.0),
+        axis.ticks = element_line(color = "black", size = 1.5),
+        text = element_text(size = 25),
+        axis.text.y = element_text(size = 15)) +
+  ggtitle("Early OPC-like")
+
+desc <- late_gsea[c("GO:0048167",
+                    "GO:0071868",
+                    "GO:0099536",
+                    "GO:0099537",
+                    "GO:0042391",
+                    "GO:1903047",
+                    "GO:0140014",
+                    "GO:0072089",
+                    "GO:0000278",
+                    "GO:0051276"), ]$Description
+#mutate(gsea_BBvsCTRL, qscore = -log(p.adjust, base=10)) %>% 
+#    barplot(x="qscore")
+library(DOSE)
+library(enrichplot)
+dotplot(late_gsea, x = "NES", showCategory = desc) +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour = "black", size = 1.0),
+        axis.ticks = element_line(color = "black", size = 1.5),
+        text = element_text(size = 25),
+        axis.text.y = element_text(size = 15)) +
+  ggtitle("Late OPC-like")
+```
+
+```{r}
+early_GOIDs_synapse <- c("GO:0007268",
+                     "GO:0098916",
+                     "GO:0060078",
+                     "GO:0007218")
+
+early_synapse_genes <- unique(c(unlist(strsplit(dplyr::filter(early_gsea@result, ID %in% early_GOIDs_synapse)$core_enrichment[1], split = "/")),
+                         unlist(strsplit(dplyr::filter(early_gsea@result, ID %in% early_GOIDs_synapse)$core_enrichment[2], split = "/")),
+                         unlist(strsplit(dplyr::filter(early_gsea@result, ID %in% early_GOIDs_synapse)$core_enrichment[3], split = "/")),
+                         unlist(strsplit(dplyr::filter(early_gsea@result, ID %in% early_GOIDs_synapse)$core_enrichment[4], split = "/"))))
+
+
+early_GOIDs_cellcycle <- c("GO:0140014",
+                     "GO:1903047",
+                     "GO:0000280",
+                     "GO:0000070",
+                     "GO:0000819")
+
+early_cellcycle_genes <- unique(c(unlist(strsplit(dplyr::filter(early_gsea@result, ID %in% early_GOIDs_cellcycle)$core_enrichment[1], split = "/")),
+                         unlist(strsplit(dplyr::filter(early_gsea@result, ID %in% early_GOIDs_cellcycle)$core_enrichment[2], split = "/")),
+                         unlist(strsplit(dplyr::filter(early_gsea@result, ID %in% early_GOIDs_cellcycle)$core_enrichment[3], split = "/")),
+                         unlist(strsplit(dplyr::filter(early_gsea@result, ID %in% early_GOIDs_cellcycle)$core_enrichment[4], split = "/")),
+                         unlist(strsplit(dplyr::filter(early_gsea@result, ID %in% early_GOIDs_cellcycle)$core_enrichment[5], split = "/"))))
+```
+
+
+```{r}
+late_GOIDs_synapse <- c("GO:0099536",
+                        "GO:0099537",
+                        "GO:0048167",
+                        "GO:0042391")
+
+late_synapse_genes <- unique(c(unlist(strsplit(dplyr::filter(late_gsea@result, ID %in% late_GOIDs_synapse)$core_enrichment[1], split = "/")),
+                         unlist(strsplit(dplyr::filter(late_gsea@result, ID %in% late_GOIDs_synapse)$core_enrichment[2], split = "/")),
+                         unlist(strsplit(dplyr::filter(late_gsea@result, ID %in% late_GOIDs_synapse)$core_enrichment[3], split = "/")),
+                         unlist(strsplit(dplyr::filter(late_gsea@result, ID %in% late_GOIDs_synapse)$core_enrichment[4], split = "/"))))
+
+
+late_GOIDs_cellcycle <- c("GO:1903047",
+                          "GO:0000278",
+                          "GO:0051276",
+                          "GO:0140014",
+                          "GO:0072089")
+
+late_cellcycle_genes <- unique(c(unlist(strsplit(dplyr::filter(late_gsea@result, ID %in% late_GOIDs_cellcycle)$core_enrichment[1], split = "/")),
+                         unlist(strsplit(dplyr::filter(late_gsea@result, ID %in% late_GOIDs_cellcycle)$core_enrichment[2], split = "/")),
+                         unlist(strsplit(dplyr::filter(late_gsea@result, ID %in% late_GOIDs_cellcycle)$core_enrichment[3], split = "/")),
+                         unlist(strsplit(dplyr::filter(late_gsea@result, ID %in% late_GOIDs_cellcycle)$core_enrichment[4], split = "/")),
+                         unlist(strsplit(dplyr::filter(late_gsea@result, ID %in% late_GOIDs_cellcycle)$core_enrichment[5], split = "/"))))
+```
+
+
+
+
+
+
+```{r}
+setwd("C:/Users/denni/Onedrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Sept_2025_Analysis/")
+
+early_diffExp <- read.csv("diffExp_early OPCLIKEvsOPC_samples.csv", header = TRUE)
+
+
+early_diffExp$diffexpressed <- "NS"
+early_diffExp$diffexpressed[early_diffExp$logFC > 1.0 & early_diffExp$adj.P.Val <= 0.01] <- "UPREGULATED"
+early_diffExp$diffexpressed[early_diffExp$logFC < -1.0 & early_diffExp$adj.P.Val <= 0.01] <- "DOWNREGULATED"
+
+nrow(dplyr::filter(early_diffExp, diffexpressed == "UPREGULATED"))
+nrow(dplyr::filter(early_diffExp, diffexpressed == "DOWNREGULATED"))
+
+highlight_label_df <- early_diffExp %>%
+    filter(X %in% c(gene_sets$Reg.CellCycle.Checkpoint))
+
+```
+
+
+```{r}
+library(ggplot2)
+library(ggrepel)
+
+ggplot(data = early_diffExp, aes(x = logFC, y = -log10(adj.P.Val), col = diffexpressed)) + 
+  scale_colour_manual(values = c("#93D4FF", "grey", "#A10300")) +
+  geom_point(size = 3) +
+  geom_point(data = highlight_label_df, aes(x = logFC, y = -log10(adj.P.Val)), size = 5, color = "black") +
+  geom_label_repel(data = highlight_label_df, aes(label = X), color = "black", box.padding = 1, 
+                  point.padding = 0.5, segment.color = 'black', size = 5) +
+  geom_vline(xintercept=c(-1, 1), col="black", alpha = 0.5, size = 1, linetype = "twodash") +
+  geom_hline(yintercept = -log10(0.01), col = "black", alpha = 0.5, size = 1, linetype = "twodash") +
+  #xlim(c(-4, 4)) +
+  #ylim(c(0,10)) + 
+  theme(legend.position = "none", 
+        text=element_text(size=20), 
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.line = element_line(color = "black")) +
+  ggtitle("Early OPC-like - Reg of Cell cycle checkpoint")
+```
+
+
+```{r}
+setwd("C:/Users/denni/Onedrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Sept_2025_Analysis/")
+
+late_diffExp <- read.csv("diffExp_late OPCLIKEvsOPC_samples.csv", header = TRUE)
+
+
+late_diffExp$diffexpressed <- "NS"
+late_diffExp$diffexpressed[late_diffExp$logFC > 1.0 & late_diffExp$adj.P.Val <= 0.05] <- "UPREGULATED"
+late_diffExp$diffexpressed[late_diffExp$logFC < -1.0 & late_diffExp$adj.P.Val <= 0.05] <- "DOWNREGULATED"
+
+nrow(dplyr::filter(late_diffExp, diffexpressed == "UPREGULATED"))
+nrow(dplyr::filter(late_diffExp, diffexpressed == "DOWNREGULATED"))
+
+highlight_label_df <- late_diffExp %>%
+    filter(X %in% c(gene_sets$Reg.CellCycle.Checkpoint))
+
+```
+
+
+```{r}
+library(ggplot2)
+library(ggrepel)
+
+ggplot(data = late_diffExp, aes(x = logFC, y = -log10(adj.P.Val), col = diffexpressed)) + 
+  scale_colour_manual(values = c("#93D4FF", "grey", "#A10300")) +
+  geom_point(size = 3) +
+  geom_point(data = highlight_label_df, aes(x = logFC, y = -log10(adj.P.Val)), size = 5, color = "black") +
+  geom_label_repel(data = highlight_label_df, aes(label = X), color = "black", box.padding = 1, 
+                  point.padding = 0.5, segment.color = 'black', size = 5) +
+  geom_vline(xintercept=c(-1, 1), col="black", alpha = 0.5, size = 1, linetype = "twodash") +
+  geom_hline(yintercept = -log10(0.01), col = "black", alpha = 0.5, size = 1, linetype = "twodash") +
+  #xlim(c(-4, 4)) +
+  #ylim(c(0,10)) + 
+  theme(legend.position = "none", 
+        text=element_text(size=20), 
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.line = element_line(color = "black")) +
+  ggtitle("Late OPC-like - Reg of Cell cycle checkpoint")
+```
+
+
+Create dataframe of synapse and cell cycle genes from gsea core enrichments
+
+```{r}
+synapse_early_unique <- early_synapse_genes[!(early_synapse_genes %in% late_synapse_genes)]
+synapse_late_unique <- late_synapse_genes[!(late_synapse_genes %in% early_synapse_genes)]
+
+
+cellcycle_early_unique <- early_cellcycle_genes[!(early_cellcycle_genes %in% late_cellcycle_genes)]
+cellcycle_late_unique <- late_cellcycle_genes[!(late_cellcycle_genes %in% early_cellcycle_genes)]
+
+core_enrichment_df <- data.frame(Early_synapse = c(early_synapse_genes, rep("NA", 258-length(early_synapse_genes))),
+                                 Early_cellcycle = c(early_cellcycle_genes, rep("NA", 258-length(early_cellcycle_genes))),
+                                 Late_synapse = c(late_synapse_genes, rep("NA", 258-length(late_synapse_genes))),
+                                 Late_cellcycle = c(late_cellcycle_genes, rep("NA", 258-length(late_cellcycle_genes))),
+                                 Synapse_early_unique = c(synapse_early_unique, rep("NA", 258-length(synapse_early_unique))),
+                                 Synapse_late_unique = c(synapse_late_unique, rep("NA", 258-length(synapse_late_unique))),
+                                 Cellcycle_early_unique = c(cellcycle_early_unique, rep("NA", 258-length(cellcycle_early_unique))),
+                                 Cellcycle_late_unique = c(cellcycle_late_unique, rep("NA", 258-length(cellcycle_late_unique))),
+                                 Reg_checkpoint_early = c(early_reg_CC, rep("NA", 258-length(early_reg_CC))),
+                                 Reg_checkpoint_late = c(late_reg_CC, rep("NA", 258-length(late_reg_CC))),
+                                 Pro_CC_early = c(early_progress_CC, rep("NA", 258-length(early_progress_CC))),
+                                 Pro_CC_late = c(late_progress_CC, rep("NA", 258-length(late_progress_CC))))
+
+
+write.csv(core_enrichment_df, file = "C:/Users/denni/Onedrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Sept_2025_Analysis/core_enrichment_df.csv")
+```
+
+
+
+```{r}
+gene_sets$Neg.reg.CellCycle.Checkpoint[gene_sets$Neg.reg.CellCycle.Checkpoint %in% core_enrichment_df$Cellcycle_early_unique]
+gene_sets$Neg.reg.CellCycle.Checkpoint[gene_sets$Neg.reg.CellCycle.Checkpoint %in% core_enrichment_df$Cellcycle_late_unique]
+
+gene_sets$Pos.reg.CellCycle.Checkpoint[gene_sets$Pos.reg.CellCycle.Checkpoint %in% core_enrichment_df$Cellcycle_early_unique]
+gene_sets$Pos.reg.CellCycle.Checkpoint[gene_sets$Pos.reg.CellCycle.Checkpoint %in% core_enrichment_df$Cellcycle_late_unique]
+
+early_reg_CC <- gene_sets$Reg.CellCycle.Checkpoint[gene_sets$Reg.CellCycle.Checkpoint %in% core_enrichment_df$Cellcycle_early_unique]
+late_reg_CC <- gene_sets$Reg.CellCycle.Checkpoint[gene_sets$Reg.CellCycle.Checkpoint %in% core_enrichment_df$Cellcycle_late_unique]
+```
+
+```{r}
+early_progress_CC <- gene_sets$Cell.Cycle.comb[gene_sets$Cell.Cycle.comb %in% core_enrichment_df$Cellcycle_early_unique]
+late_progress_CC <- gene_sets$Cell.Cycle.comb[gene_sets$Cell.Cycle.comb %in% core_enrichment_df$Cellcycle_late_unique]
+
+```
+
+
+
+```{r}
+late_diffexp[c("Brca2","Incenp","Mad1l1"),]
+early_diffexp[c("Aurka",  "Aurkb",  "Birc5",  "Gen1",   "Mad2l1", "Ndc80",  "Rpa2",   "Ska1",   "Ska3"),]
+```
+
+
+
+```{r}
+library(tidyr)
+
+early_diffexp_reg_Check <- drop_na(early_diffexp[gene_sets$Reg.CellCycle.Checkpoint,]) 
+early_diffexp_pro_CC <- drop_na(early_diffexp[gene_sets$Cell.Cycle.comb,]) 
+
+late_diffexp_reg_Check <- drop_na(late_diffexp[gene_sets$Reg.CellCycle.Checkpoint,]) 
+late_diffexp_pro_CC <- drop_na(late_diffexp[gene_sets$Cell.Cycle.comb,]) 
+```
+
+```{r}
+library(VennDetail)
+
+detail(venndetail(list(early = core_enrichment_df$Early_cellcycle, late = core_enrichment_df$Late_cellcycle)))
+
+detail(venndetail(list(early = core_enrichment_df$Early_synapse, late = core_enrichment_df$Late_synapse)))
+```
+
+```{r}
+earlyOPC.like_unique <- 1339
+lateOPC.like_unique <- 63
+Shared <- 120
+
+vennPlot <- draw.pairwise.venn(area1 = earlyOPC.like_unique + Shared,
+                   area2 = lateOPC.like_unique + Shared,
+                   category = c("Early OPC-like", "Late OPC-like"),
+                   cross.area = Shared,
+                   alpha = c(0.7,0.7),
+                   fill = c("#77459B", "#A2AED8"),
+                   scaled = TRUE, 
+                   cat.cex = 2.5,
+                   cex = 2,
+                   cat.pos = c(0,220))
+
+grid.newpage()
+grid.draw(vennPlot)
+```
+
+
+
+
+
+

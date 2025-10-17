@@ -1,0 +1,668 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(Seurat)
+library(dplyr)
+library(RColorBrewer)
+library(ggplot2)
+library(reticulate)
+```
+
+```{r}
+setwd("C:/Users/denni/Onedrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/")
+Tumor_metadata <- read.csv("August_2025_Analysis/Tumor.mergered.cellcycle.metadata.csv")
+
+
+Tumor_cellnames <- as.data.frame(matrix(unlist(strsplit(Tumor_metadata$X, split = "_")), ncol = 3, byrow = TRUE))
+
+Tumor_metadata$sample <- Tumor_cellnames$V2
+
+Tumor_metadata$cellnames <- Tumor_cellnames$V3
+```
+
+
+```{r}
+setwd("C:/Users/denni/Onedrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/")
+
+
+
+Late_L3 <- Read10X(data.dir = "filtered_cellranger_output/Late-stage L3/")
+Late_L3_seurat <- CreateSeuratObject(counts = Late_L3, project = "Late_L3", min.features = 150)
+Late_L3_seurat[["percent.mt"]] <- PercentageFeatureSet(Late_L3_seurat, pattern = "^mt-")
+Late_L3_subset <- subset(Late_L3_seurat, cells = dplyr::filter(Tumor_metadata, sample == "L3")$cellnames)
+#Late_L3_subset <- subset(Late_L3_subset, subset = nCount_RNA >= 2000)
+
+Late_L5 <- Read10X(data.dir = "filtered_cellranger_output/Late-stage L5/")
+Late_L5_seurat <- CreateSeuratObject(counts = Late_L5, project = "Late_L5", min.features = 150)
+Late_L5_seurat[["percent.mt"]] <- PercentageFeatureSet(Late_L5_seurat, pattern = "^mt-")
+Late_L5_subset <- subset(Late_L5_seurat, cells = dplyr::filter(Tumor_metadata, sample == "L5")$cellnames)
+#Late_L5_subset <- subset(Late_L5_subset, subset = nCount_RNA >= 2000)
+
+Late_R2L2 <- Read10X(data.dir = "filtered_cellranger_output/Late-stage R2L2/")
+Late_R2L2_seurat <- CreateSeuratObject(counts = Late_R2L2, project = "Late_R2L2", min.features = 150)
+Late_R2L2_seurat[["percent.mt"]] <- PercentageFeatureSet(Late_R2L2_seurat, pattern = "^mt-")
+Late_R2L2_subset <- subset(Late_R2L2_seurat, cells = dplyr::filter(Tumor_metadata, sample == "R2L2")$cellnames)
+#Late_R2L2_subset <- subset(Late_R2L2_subset, subset = nCount_RNA >= 2000)
+
+Early_L2 <- Read10X(data.dir = "filtered_cellranger_output/Early-stage L2/")
+Early_L2_seurat <- CreateSeuratObject(counts = Early_L2, project = "Early_L2", min.features = 150)
+Early_L2_seurat[["percent.mt"]] <- PercentageFeatureSet(Early_L2_seurat, pattern = "^mt-")
+Early_L2_subset <- subset(Early_L2_seurat, cells = dplyr::filter(Tumor_metadata, sample == "L2")$cellnames)
+#Early_L2_subset <- subset(Early_L2_subset, subset = nCount_RNA >= 2000)
+
+Early_R2L3 <- Read10X(data.dir = "filtered_cellranger_output/Early-stage R2L3/")
+Early_R2L3_seurat <- CreateSeuratObject(counts = Early_R2L3, project = "Early_R2L3", min.features = 150)
+Early_R2L3_seurat[["percent.mt"]] <- PercentageFeatureSet(Early_R2L3_seurat, pattern = "^mt-")
+Early_R2L3_subset <- subset(Early_R2L3_seurat, cells = dplyr::filter(Tumor_metadata, sample == "R2L3")$cellnames)
+#Early_R2L3_subset <- subset(Early_R2L3_subset, subset = nCount_RNA >= 2000)
+
+Early_R2L5 <- Read10X(data.dir = "filtered_cellranger_output/Early-stage R2L5/")
+Early_R2L5_seurat <- CreateSeuratObject(counts = Early_R2L5, project = "Early_R2L5", min.features = 150)
+Early_R2L5_seurat[["percent.mt"]] <- PercentageFeatureSet(Early_R2L5_seurat, pattern = "^mt-")
+Early_R2L5_subset <- subset(Early_R2L5_seurat, cells = dplyr::filter(Tumor_metadata, sample == "R2L5")$cellnames)
+#Early_R2L5_subset <- subset(Early_R2L5_subset, subset = nCount_RNA >= 2000)
+```
+
+
+```{r}
+remove(Early_L2)
+remove(Early_L2_seurat)
+remove(Early_R2L3)
+remove(Early_R2L3_seurat)
+remove(Early_R2L5)
+remove(Early_R2L5_seurat)
+
+remove(Late_L3)
+remove(Late_L3_seurat)
+remove(Late_L5)
+remove(Late_L5_seurat)
+remove(Late_R2L2)
+remove(Late_R2L2_seurat)
+```
+
+
+```{r}
+Tumors.merged <- merge(x = Early_L2_subset, 
+                       y = c(Early_R2L3_subset, Early_R2L5_subset, 
+                             Late_L3_subset, Late_L5_subset, Late_R2L2_subset),
+                       add.cell.ids = c("Early_L2", "Early_R2L3", "Early_R2L5",
+                                        "Late_L3", "Late_L5", "Late_R2L2"),
+                       project = "BBp53n Tumors")
+
+Tumors.merged@meta.data$tissue <- "NA"
+
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Early_L2", ]$tissue <- "Early-tumor"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Early_R2L3", ]$tissue <- "Early-tumor"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Early_R2L5", ]$tissue <- "Early-tumor"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Late_L3", ]$tissue <- "Late-tumor"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Late_L5", ]$tissue <- "Late-tumor"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Late_R2L2", ]$tissue <- "Late-tumor"
+
+
+filtered_tumor_cells <- read.csv("C:/Users/denni/Onedrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/August_2025_Analysis/tumors.merged.hbFiltered.csv")$X
+#filter out high Hb cells
+Tumors.merged <- subset(Tumors.merged, cells = filtered_tumor_cells)
+
+Tumors.cycling <- subset(Tumors.merged, cells = Tumor_metadata[Tumor_metadata$tricycle == "cycling",]$X)
+Tumors.quiescent <- subset(Tumors.merged, cells = Tumor_metadata[Tumor_metadata$tricycle == "quiescent",]$X)
+
+#Early_L2.merged[["RNA"]] <- split(Early_L2.merged[["RNA"]], f = Early_L2.merged$tissue)
+#Early_L2.merged
+table(Tumors.merged$orig.ident)
+table(Tumors.cycling$orig.ident)
+table(Tumors.quiescent$orig.ident)
+
+```
+
+```{r}
+remove(Early_L2_subset)
+remove(Early_R2L3_subset)
+remove(Early_R2L5_subset)
+
+remove(Late_L3_subset)
+remove(Late_L5_subset)
+remove(Late_R2L2_subset)
+```
+
+```{r}
+res <- 1
+ndims <- 20
+vars.reg <- c('nCount_RNA')
+
+Tumors.cycling <- NormalizeData(Tumors.cycling, normalization.method = "LogNormalize", scale.factor = 1000)
+Tumors.cycling <- FindVariableFeatures(Tumors.cycling, selection.method = "vst", nfeatures = 3000)
+
+hvg <- VariableFeatures(Tumors.cycling)
+var_regex = 'Rik$|^mt|^Gm' # remove HLA, immunoglobulin, RNA, MT, and RP genes based on HUGO gene names
+hvg = grep(var_regex, hvg, invert = T, value=T)
+
+#hvg <- neurosphere_CCgenes
+```
+
+```{r}
+Tumors.cycling %<>%
+  ScaleData(vars.to.regress = vars.reg) %>%
+  RunPCA(features = hvg) %>%
+  FindNeighbors(dims = 1:ndims) %>%
+  FindClusters(resolution = res) %>%
+  RunUMAP(dims = 1:ndims)
+
+DimHeatmap(Tumors.cycling, dims = 1:9, cells = 500, balanced = T)
+
+DimPlot(Tumors.cycling, reduction = "umap", group.by = "orig.ident", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Tumors cycling") +
+  theme_bw(base_size = 15)
+
+Tumors.cycling <- IntegrateLayers(object = Tumors.cycling, 
+                                   method = RPCAIntegration,
+                                   orig.reduction = "pca", 
+                                   new.reduction = "rpca",
+                                   verbose = TRUE)
+
+
+Tumors.cycling <- FindNeighbors(Tumors.cycling, reduction = "rpca", dims = 1:20)
+Tumors.cycling <- FindClusters(Tumors.cycling, resolution = 1)
+Tumors.cycling <- RunUMAP(Tumors.cycling, reduction = "rpca", dims = 1:20, n.neighbors = 1000)
+
+
+
+DimPlot(Tumors.cycling, reduction = "umap", group.by = "seurat_clusters", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Tumors cycling") +
+  theme_bw(base_size = 15)
+DimPlot(Tumors.cycling, reduction = "umap", group.by = "orig.ident", label = F, label.box = FALSE, raster = FALSE, order = "cycling", pt.size = 1) +
+  ggtitle("Tumors cycling") +
+  theme_bw(base_size = 15)
+
+DimPlot(Tumors.cycling, reduction = "umap", group.by = "tissue", label = F, label.box = FALSE, raster = FALSE, order = "cycling", pt.size = 1, cols = c("#00BF7D", "#F8766D")) +
+  ggtitle("Tumors cycling") +
+  theme_bw(base_size = 15)
+
+DimPlot(Tumors.cycling, reduction = "umap", split.by = "tissue", label = T, label.box = FALSE, raster = FALSE, order = "cycling", pt.size = 1) +
+  ggtitle("Tumors cycling") +
+  theme_bw(base_size = 15)
+
+
+DimPlot(Tumors.cycling, reduction = "umap", split.by = "orig.ident", label = TRUE, label.box = FALSE, raster = FALSE, ncol = 3) +
+  ggtitle("Tumors cycling") +
+  theme_bw(base_size = 15)
+```
+
+```{r}
+DimPlot(Tumors.cycling, reduction = "umap", group.by = "seurat_clusters", label = FALSE, label.box = FALSE, raster = FALSE, ) +
+  ggtitle("Cycling Tumor cells") +
+  NoLegend() +
+  theme_bw(base_size = 10)
+```
+
+```{r}
+gene_sets <- read.csv("C:/Users/denni/Onedrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Genesets/all_genesets.csv", na.strings = "none")
+
+Tumors.cycling[["joined"]] <- JoinLayers(Tumors.cycling[["RNA"]])
+DefaultAssay(Tumors.cycling) <- "joined"
+
+for (x in 1:length(colnames(gene_sets))) {
+  Tumors.cycling <- AddModuleScore(Tumors.cycling, assay = "joined", features = list(gene_sets[gene_sets[,x] != "", x]),name = colnames(gene_sets)[x])
+}
+
+FeaturePlot(Tumors.cycling, features = c("Cell.Cycle.comb1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+FeaturePlot(Tumors.cycling, features = c("Reg.CellCycle.Checkpoint1", "Pos.reg.CellCycle.Checkpoint1", "Neg.reg.CellCycle.Checkpoint1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+FeaturePlot(Tumors.cycling, features = c("Glutamate.Receptor.Signaling1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+
+```
+
+
+
+
+```{r}
+library(ggpubr)
+
+VlnPlot(Tumors.cycling, features = c("Cell.Cycle.comb1"), group.by = "tissue") +
+  scale_fill_manual(values = c("#F8766D", "#00BF7D")) +
+  stat_compare_means(comparisons = list(c("Early-tumor", "Late-tumor")), label = "p.format") +
+  ylim(0,0.20)
+
+VlnPlot(Tumors.cycling, features = c("G1.S.phase1"), group.by = "tissue", cols = c("#F8766D", "#00BF7D")) +
+  scale_fill_manual(values = c("#F8766D", "#00BF7D")) +
+  stat_compare_means(comparisons = list(c("Early-tumor", "Late-tumor")), label = "p.format") +
+  ylim(-0.01,0.25)
+VlnPlot(Tumors.cycling, features = c("G2.M.phase1"), group.by = "tissue", cols = c("#F8766D", "#00BF7D")) +
+  scale_fill_manual(values = c("#F8766D", "#00BF7D")) +
+  stat_compare_means(comparisons = list(c("Early-tumor", "Late-tumor")), label = "p.format") +
+  ylim(-0.05,0.20)
+
+VlnPlot(Tumors.cycling, features = c("glutamatergic.neuron1"), group.by = "tissue", cols = c("#F8766D", "#00BF7D")) +
+  scale_fill_manual(values = c("#F8766D", "#00BF7D")) +
+  stat_compare_means(comparisons = list(c("Early-tumor", "Late-tumor")), label = "p.format") +
+  ylim(-0.02,0.25)
+VlnPlot(Tumors.cycling, features = c("Glutamate.Receptor.Signaling1"), group.by = "tissue", cols = c("#F8766D", "#00BF7D")) +
+  scale_fill_manual(values = c("#F8766D", "#00BF7D")) +
+  stat_compare_means(comparisons = list(c("Early-tumor", "Late-tumor")), label = "p.format") +
+  ylim(0,0.30)
+```
+
+```{r}
+
+Tumors.cycling$seurat_clusters <- factor(Tumors.cycling$seurat_clusters, levels = c(3,4,7,2,6,8,1,0,5)) 
+
+VlnPlot(Tumors.cycling, features = c("Reg.CellCycle.Checkpoint1"), group.by = "seurat_clusters") 
+
+VlnPlot(Tumors.cycling, features = c("Glutamate.Receptor.Signaling1"), group.by = "seurat_clusters") 
+```
+
+
+```{r}
+diffExp <- read.csv("C:/Users/denni/Onedrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/August_2025_Analysis/diffExp_limma_latevsEarly_tumorcells.csv")
+
+diffExp[gene_sets$glutamatergic.neuron,]
+
+diffExp[gene_sets$glutamatergic.neuron,]
+
+G1S_diffExp <- dplyr::filter(diffExp, X %in% gene_sets$G1.S.phase)
+
+G2M_diffExp <- dplyr::filter(diffExp, X %in% gene_sets$G2.M.phase)
+
+glutNeu_diffExp <- dplyr::filter(diffExp, X %in% gene_sets$Glutamate.Receptor.Signaling)
+
+cell_main <- dplyr::filter(diffExp, X %in% gene_sets$Cell.Cycle.maintain)
+```
+
+```{r}
+VlnPlot(Tumors.cycling, features = c("Cdkn2b", "Mcm7", "Ccnd2"), group.by = "tissue", cols = c("#F8766D", "#00BF7D"), log = F, raster = TRUE)
+
+VlnPlot(Tumors.cycling, features = c("Adrb2", "Grm8", "Grm7"), group.by = "tissue", cols = c("#F8766D", "#00BF7D"), log = F, raster = TRUE)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+Early_metadata <- read.csv("C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/April_2025_Analysis/Early_tumors_metadata_v2.csv")
+
+
+
+Early_cellnames <- as.data.frame(matrix(unlist(strsplit(Early_metadata$X, split = "_")), ncol = 3, byrow = TRUE))
+
+Early_metadata$sample <- Early_cellnames$V2
+
+Early_metadata$cellnames <- Early_cellnames$V3
+
+
+Late_metadata <- read.csv("C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/April_2025_Analysis/Late_tumors_metadata_v2.csv")
+
+Late_cellnames <- as.data.frame(matrix(unlist(strsplit(Late_metadata$X, split = "_")), ncol = 3, byrow = TRUE))
+
+Late_metadata$sample <- Late_cellnames$V2
+
+Late_metadata$cellnames <- Late_cellnames$V3
+
+```
+
+```{r}
+normOPCs <- c(Early_metadata[Early_metadata$seurat_clusters == 19,]$X, Late_metadata[Late_metadata$seurat_clusters == 8,]$X)
+
+DimPlot(Tumors.cycling, cells.highlight = normOPCs)
+
+```
+
+
+```{r}
+library(monocle3)
+library(SeuratWrappers)
+library(ggplot2)
+library(ggridges)
+```
+
+```{r}
+Tumors.cycling[["joined"]] <- JoinLayers(Tumors.cycling[["RNA"]])
+DefaultAssay(Tumors.cycling) <- "joined"
+
+
+cds <- as.cell_data_set(Tumors.cycling)
+
+head(colData(cds))
+fData(cds)
+rownames(fData(cds))[1:10]
+
+fData(cds)$gene_short_name <- rownames(fData(cds))
+head(fData(cds))
+
+head(counts(cds))
+
+```
+
+```{r}
+recreate.partitions <- c(rep(1, length(cds@colData@rownames)))
+names(recreate.partitions) <- cds@colData@rownames
+recreate.partitions <- as.factor(recreate.partitions)
+
+cds@clusters@listData[["UMAP"]][["partitions"]] <- recreate.partitions
+
+list.cluster <- Tumors.cycling$seurat_clusters
+cds@clusters@listData[["UMAP"]][["clusters"]] <- list.cluster
+```
+
+
+```{r}
+cds@int_colData@listData[["reducedDims"]]@listData[["UMAP"]] <- Tumors.cycling@reductions$umap@cell.embeddings
+
+cluster.before.traj <-plot_cells(cds, color_cells_by = "cluster", label_groups_by_cluster = F, 
+           group_label_size = 5) + theme(legend.position = "right")
+
+```
+
+```{r}
+cds <- learn_graph(cds, use_partition = F)
+
+plot_cells(cds, color_cells_by = "cluster", label_groups_by_cluster = F,
+           label_branch_points = T, label_roots = T, label_leaves = F,
+           group_label_size = 5)
+```
+
+
+```{r}
+cds <- order_cells(cds, reduction_method = "UMAP", root_cells = colnames(cds[, clusters(cds) == 3]))
+plot_cells(cds, color_cells_by = "pseudotime", label_groups_by_cluster = T,
+           label_branch_points = F, label_roots = F, label_leaves = F, cell_size = 1, alpha = 0.5)
+
+
+```
+
+```{r}
+
+
+cds$monocle3_pseudotime <- pseudotime(cds)
+data.pseudo <- as.data.frame(colData(cds))
+
+ggplot(data.pseudo, aes(monocle3_pseudotime, seurat_clusters, fill = seurat_clusters)) + geom_boxplot()
+
+ggplot(data.pseudo, aes(monocle3_pseudotime, reorder(seurat_clusters, monocle3_pseudotime), fill = seurat_clusters)) + geom_boxplot()
+```
+
+```{r}
+library(dplyr)
+library(Seurat)
+## Calculate size factors using built-in function in monocle3
+cds <- estimate_size_factors(cds)
+
+## Add gene names into CDS
+cds@rowRanges@elementMetadata@listData[["gene_short_name"]] <- rownames(Tumors.merged[["RNA"]])
+
+deg <- graph_test(cds, neighbor_graph = "principal_graph")
+deg %>% arrange(q_value) %>% filter(status == "OK") %>% head(n = 20)
+
+Tumors.cycling_pseudotime <- pseudotime(cds)
+
+rownames(Tumors.cycling@meta.data) == names(Tumors.cycling_pseudotime)
+names(head(Tumors.cycling_pseudotime))
+
+Tumors.cycling@meta.data$pseudotime <- Tumors.cycling_pseudotime
+
+Tumors_pseudotime <- data.frame(cellnames = rownames(Tumors.cycling@meta.data),
+                                pseudotime = Tumors.cycling@meta.data$pseudotime)
+
+Tumors_data <- as.data.frame(Tumors.cycling[["joined"]]$data)
+
+#remove unwanted genes from gene expression data
+remove_genes = 'Rik$|^mt|^Gm' # remove HLA, immunoglobulin, RNA, MT, and RP genes based on HUGO gene names
+Tumors_data <- Tumors_data[grep(remove_genes, rownames(Tumors_data), invert = T, value=T), ]
+
+Tumors_data <- t(Tumors_data)
+Tumors_data <- as.data.frame(Tumors_data)
+
+#add a column of cellnames in Tumors_data
+Tumors_data$cellnames <- rownames(Tumors_data)
+
+Tumors_data_pseudo <- left_join(Tumors_data, Tumors_pseudotime, by = "cellnames", keep = FALSE, unmatched = "drop")
+
+rownames(Tumors_data_pseudo) <- Tumors_data_pseudo$cellnames
+
+#remove the cellnames column
+Tumors_data_pseudo <- Tumors_data_pseudo[, -which(names(Tumors_data_pseudo) %in% "cellnames")]
+```
+
+
+```{r}
+library(viridis)
+FeaturePlot(Tumors.cycling, features = "pseudotime", split.by = "tissue", pt.size = 1) &
+  scale_colour_viridis(option = "magma")
+```
+
+
+
+early vs late percentages along pseudotime
+
+```{r}
+pseudo_order <- c(3,4,7,2,6,8,1,0,5)
+
+total_early <- nrow(Tumors.cycling@meta.data[Tumors.cycling@meta.data$tissue == "Early-tumor",])
+total_late <- nrow(Tumors.cycling@meta.data[Tumors.cycling@meta.data$tissue == "Late-tumor",])
+
+pseudo_perc_df <- data.frame(seurat_clusters = as.character(pseudo_order),
+                             Early.tumors = c(rep(1, length(pseudo_order))), 
+                             Late.tumors = c(rep(1, length(pseudo_order))),
+                             LateVSEarly_metric = c(rep(1, length(pseudo_order))))
+
+#loop it
+for (x in 1:length(pseudo_order)) {
+  pseudo_perc_df$Early.tumors[x] <- round((nrow(dplyr::filter(Tumors.cycling@meta.data, seurat_clusters == pseudo_order[x] & tissue == "Early-tumor"))/total_early)*100)
+  pseudo_perc_df$Late.tumors[x] <- round((nrow(dplyr::filter(Tumors.cycling@meta.data, seurat_clusters == pseudo_order[x] & tissue == "Late-tumor"))/total_late)*100)
+  pseudo_perc_df$LateVSEarly_metric[x] <- log2(pseudo_perc_df$Late.tumors[x]/pseudo_perc_df$Early.tumors[x]) 
+}
+
+#loop it
+for (x in 1:length(pseudo_order)) {
+  pseudo_perc_df$Early.tumors[x] <- (nrow(dplyr::filter(Tumors.cycling@meta.data, seurat_clusters == pseudo_order[x] & tissue == "Early-tumor"))/total_early)*100
+  pseudo_perc_df$Late.tumors[x] <- (nrow(dplyr::filter(Tumors.cycling@meta.data, seurat_clusters == pseudo_order[x] & tissue == "Late-tumor"))/total_late)*100
+  pseudo_perc_df$LateVSEarly_metric[x] <- log2(pseudo_perc_df$Late.tumors[x]/pseudo_perc_df$Early.tumors[x]) 
+}
+
+#temporary dataframe with clusters, pseudotime medians and number of nuclei per cluster
+temp_df <- Tumors.cycling@meta.data %>%
+  group_by(seurat_clusters) %>%
+  summarise(median = median(pseudotime), n = n())
+
+#create a new dataframe with latevsearlymetric and pseudotime as columns
+Tumors.cycling@meta.data$pseudotime
+latevsearly_pseudotime <- left_join(pseudo_perc_df, temp_df, by = "seurat_clusters")
+
+library(ggplot2)
+
+ggplot(data = latevsearly_pseudotime, aes(x = log2(median), y = LateVSEarly_metric)) +
+  geom_point()
+
+library(viridis)
+library(ggpubr)
+
+ggplot(data = latevsearly_pseudotime, aes(x = log2(median), y = LateVSEarly_metric, colour = median)) +
+  geom_point(size = 5) +
+  scale_color_viridis_c(option = "magma", name = "Pseudotime") +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_pubr(legend = "right", base_size = 20) +
+  xlab(label = "log2(Pseudotime)") +
+  ylab(label = "log2(%LateTumor/%EarlyTumor)")
+
+```
+
+
+linear model plot for regulation cell cycle checkpoint data
+```{r}
+pseudo_order <- c(3,4,7,2,6,8,1,0,5)
+
+median(Tumors.cycling@meta.data[Tumors.cycling@meta.data$seurat_clusters == 3,]$Reg.CellCycle.Checkpoint1)
+
+cycleControl_df <- data.frame(seurat_clusters = as.character(pseudo_order),
+                             cycleControl_median = NA)
+
+for (x in 1:length(pseudo_order)) {
+  cycleControl_df[x,]$cycleControl_median <- median(Tumors.cycling@meta.data[Tumors.cycling@meta.data$seurat_clusters == pseudo_order[x],]$Reg.CellCycle.Checkpoint1)
+}
+
+#temporary dataframe with clusters, pseudotime medians and number of nuclei per cluster
+temp_df <- Tumors.cycling@meta.data %>%
+  group_by(seurat_clusters) %>%
+  summarise(median = median(pseudotime), n = n())
+
+#create a new dataframe with latevsearlymetric and pseudotime as columns
+cycleControl_df <- left_join(cycleControl_df, temp_df, by = "seurat_clusters")
+
+
+
+ggplot(data = cycleControl_df, aes(x = log2(median), y = cycleControl_median, colour = cycleControl_median)) +
+  geom_point(size = 5) +
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu"))) +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_pubr(legend = "right", base_size = 20) +
+  xlab(label = "log2(Pseudotime)") +
+  ylab(label = "Regulation of Cell Cycle Checkpoint")
+
+
+```
+
+linear model plot for glutamate receptor signaling data
+```{r}
+pseudo_order <- c(3,4,7,2,6,8,1,0,5)
+
+median(Tumors.cycling@meta.data[Tumors.cycling@meta.data$seurat_clusters == 3,]$Glutamate.Receptor.Signaling1)
+
+glutReceptor_df <- data.frame(seurat_clusters = as.character(pseudo_order),
+                             glutReceptor_median = NA)
+
+for (x in 1:length(pseudo_order)) {
+  glutReceptor_df[x,]$glutReceptor_median <- median(Tumors.cycling@meta.data[Tumors.cycling@meta.data$seurat_clusters == pseudo_order[x],]$Glutamate.Receptor.Signaling1)
+}
+
+#temporary dataframe with clusters, pseudotime medians and number of nuclei per cluster
+temp_df <- Tumors.cycling@meta.data %>%
+  group_by(seurat_clusters) %>%
+  summarise(median = median(pseudotime), n = n())
+
+#create a new dataframe with latevsearlymetric and pseudotime as columns
+glutReceptor_df <- left_join(glutReceptor_df, temp_df, by = "seurat_clusters")
+
+
+
+ggplot(data = glutReceptor_df, aes(x = log2(median), y = glutReceptor_median, colour = glutReceptor_median)) +
+  geom_point(size = 5) +
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu"))) +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_pubr(legend = "right", base_size = 20) +
+  xlab(label = "log2(Pseudotime)") +
+  ylab(label = "Glutamate Receptor signaling")
+
+
+```
+
+
+
+
+```{r}
+cor(Tumors_data_pseudo[,1], Tumors_data_pseudo$pseudotime, method = "pearson")
+
+colnames(Tumors_data_pseudo)[1]
+
+pseudo_cor_df <- data.frame(gene = 1:(ncol(Tumors_data_pseudo)-1),
+                            pearson_cor = 1:(ncol(Tumors_data_pseudo)-1))
+
+for (x in 1:(ncol(Tumors_data_pseudo)-1)) {
+  pseudo_cor_df[x,]$gene <- colnames(Tumors_data_pseudo)[x]
+  pseudo_cor_df[x,]$pearson_cor <- cor(Tumors_data_pseudo[,x], Tumors_data_pseudo$pseudotime, method = "pearson")
+}
+
+library(tidyr)
+pseudo_cor_df <- drop_na(pseudo_cor_df)
+
+#write.csv(pseudo_cor_df, file = "C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/August_2025_Analysis/pseudotime_cycling_08122025.csv")
+
+```
+
+```{r}
+plot_genes_in_pseudotime(cds[c("Nrxn3", "Grm7", "Fgf14"),], color_cells_by = "monocle3_pseudotime" )
+
+plot_genes_in_pseudotime(cds[c("Kcnip4", "Nrg3", "Meg3"),], color_cells_by = "monocle3_pseudotime" )
+
+plot_genes_in_pseudotime(cds[c("Map3k1", "Pik3r1", "Pdgfra"),], color_cells_by = "monocle3_pseudotime" )
+```
+
+
+
+```{r}
+library(viridis)
+FeaturePlot(Tumors.cycling, features = c("Agap1", "Malat1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1) &
+  scale_colour_viridis(option = "magma")
+```
+
+
+
+
+
+
+```{r}
+Tumors.cycling[["joined"]] <- JoinLayers(Tumors.cycling[["RNA"]])
+DefaultAssay(Tumors.cycling) <- "joined"
+
+#Idents(Tumors.cycling) <- "seurat_clusters"
+#Tumors.cycling.markers <- FindAllMarkers(Tumors.cycling,
+#                                        assay = "joined",
+#                                        logfc.threshold = 0.7,
+#                                        only.pos = TRUE)
+
+gene_sets <- read.csv("C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Genesets/all_genesets.csv", na.strings = "none")
+
+for (x in 1:length(colnames(gene_sets))) {
+  Tumors.cycling <- AddModuleScore(Tumors.cycling, assay = "joined", features = list(gene_sets[gene_sets[,x] != "", x]),name = colnames(gene_sets)[x])
+}
+
+FeaturePlot(Tumors.cycling, features = c("OPC1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+
+FeaturePlot(Tumors.cycling, features = c("ASTROCYTE1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+FeaturePlot(Tumors.cycling, features = c("Cell.Cycle.comb1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+FeaturePlot(Tumors.cycling, features = c("Glutamate.Receptor.Signaling1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+FeaturePlot(Tumors.cycling, features = c("glutamatergic.neuron1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+
+FeaturePlot(Tumors.cycling, features = c("NEURON1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+FeaturePlot(Tumors.cycling, features = c("BBp53n.Glioma1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+FeaturePlot(Tumors.cycling, features = c("GABAergic.neuron1"), reduction = "umap", label = TRUE, order = TRUE, pt.size = 1)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+
+VlnPlot(Tumors.cycling, features = c("GABAergic.neuron1", "glutamatergic.neuron1"), group.by = "tissue")
+```
+
+
+
+

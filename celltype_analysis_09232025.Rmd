@@ -1,0 +1,605 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r}
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+library(RColorBrewer)
+```
+
+import 10X cellranger output
+
+```{r}
+setwd("C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/")
+
+#BBp53n_OPCs <- Read10X(data.dir = "filtered_cellranger_output/BBp53n_OPCs/")
+
+nBrain <- Read10X(data.dir = "../10X_5KadultMouse/5k_mouse_brain_CNIK_3pv3_raw_feature_bc_matrix/")
+nBrain_seurat <- CreateSeuratObject(counts = nBrain, project = "normal Brain", min.features = 150)
+nBrain_seurat[["percent.mt"]] <- PercentageFeatureSet(nBrain_seurat, pattern = "^mt-")
+nBrain_subset <- subset(nBrain_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000 & percent.mt < 10)
+
+Early_L2 <- Read10X(data.dir = "filtered_cellranger_output/Early-stage L2/")
+Early_L2_seurat <- CreateSeuratObject(counts = Early_L2, project = "Early_L2", min.features = 150)
+Early_L2_seurat[["percent.mt"]] <- PercentageFeatureSet(Early_L2_seurat, pattern = "^mt-")
+Early_L2_subset <- subset(Early_L2_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Early_R2L3 <- Read10X(data.dir = "filtered_cellranger_output/Early-stage R2L3/")
+Early_R2L3_seurat <- CreateSeuratObject(counts = Early_R2L3, project = "Early_R2L3", min.features = 150)
+Early_R2L3_seurat[["percent.mt"]] <- PercentageFeatureSet(Early_R2L3_seurat, pattern = "^mt-")
+Early_R2L3_subset <- subset(Early_R2L3_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Early_R2L5 <- Read10X(data.dir = "filtered_cellranger_output/Early-stage R2L5/")
+Early_R2L5_seurat <- CreateSeuratObject(counts = Early_R2L5, project = "Early_R2L5", min.features = 150)
+Early_R2L5_seurat[["percent.mt"]] <- PercentageFeatureSet(Early_R2L5_seurat, pattern = "^mt-")
+Early_R2L5_subset <- subset(Early_R2L5_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Late_L3 <- Read10X(data.dir = "filtered_cellranger_output/Late-stage L3/")
+Late_L3_seurat <- CreateSeuratObject(counts = Late_L3, project = "Late_L3", min.features = 150)
+Late_L3_seurat[["percent.mt"]] <- PercentageFeatureSet(Late_L3_seurat, pattern = "^mt-")
+Late_L3_subset <- subset(Late_L3_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Late_L5 <- Read10X(data.dir = "filtered_cellranger_output/Late-stage L5/")
+Late_L5_seurat <- CreateSeuratObject(counts = Late_L5, project = "Late_L5", min.features = 150)
+Late_L5_seurat[["percent.mt"]] <- PercentageFeatureSet(Late_L5_seurat, pattern = "^mt-")
+Late_L5_subset <- subset(Late_L5_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Late_R2L2 <- Read10X(data.dir = "filtered_cellranger_output/Late-stage R2L2/")
+Late_R2L2_seurat <- CreateSeuratObject(counts = Late_R2L2, project = "Late_R2L2", min.features = 150)
+Late_R2L2_seurat[["percent.mt"]] <- PercentageFeatureSet(Late_R2L2_seurat, pattern = "^mt-")
+Late_R2L2_subset <- subset(Late_R2L2_seurat, subset = nFeature_RNA >= 600 & nFeature_RNA <= 6000)
+
+Late_L3_subset <- subset(Late_L3_subset, cells = sample(names(Late_L3_seurat$orig.ident), size = 15000))
+Late_L5_subset <- subset(Late_L5_subset, cells = sample(names(Late_L5_seurat$orig.ident), size = 15000))
+Late_R2L2_subset <- subset(Late_R2L2_subset, cells = sample(names(Late_R2L2_seurat$orig.ident), size = 15000))
+```
+
+subset normal Brain to 5000 cells
+
+```{r}
+#VlnPlot(nBrain_subset, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"))
+
+nBrain_subset <- subset(nBrain_subset, cells = sample(names(nBrain_subset$orig.ident), size = 5000))
+```
+
+remove obsolete objects to save virtual memory
+
+```{r}
+remove(Early_L2)
+remove(Early_L2_seurat)
+remove(Early_R2L3)
+remove(Early_R2L3_seurat)
+remove(Early_R2L5)
+remove(Early_R2L5_seurat)
+
+remove(nBrain)
+remove(nBrain_seurat)
+
+remove(Late_L3)
+remove(Late_L3_seurat)
+remove(Late_L5)
+remove(Late_L5_seurat)
+remove(Late_R2L2)
+remove(Late_R2L2_seurat)
+```
+
+
+Merge the early late data and label them by early or late tumors
+
+```{r}
+Tumors.merged <- merge(x = Early_R2L3_subset, 
+                       y = c(Early_R2L5_subset, Early_L2_subset,
+                             Late_L3_subset, Late_L5_subset, Late_R2L2_subset),
+                       add.cell.ids = c("Early_R2L3", "Early_R2L5", "Early_L2",
+                                        "Late_L3", "Late_L5", "Late_R2L2"),
+                       project = "BBp53n Tumors")
+
+Tumors.merged@meta.data$tissue <- "NA"
+
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Early_L2", ]$tissue <- "Early-Tumors"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Early_R2L3", ]$tissue <- "Early-Tumors"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Early_R2L5", ]$tissue <- "Early-Tumors"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Late_L3", ]$tissue <- "Late-Tumors"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Late_L5", ]$tissue <- "Late-Tumors"
+Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "Late_R2L2", ]$tissue <- "Late-Tumors"
+#Tumors.merged@meta.data[Tumors.merged@meta.data$orig.ident %in% "normal Brain", ]$tissue <- "normal-tissue"
+
+
+
+#Late_L2.merged[["RNA"]] <- split(Late_L2.merged[["RNA"]], f = Late_L2.merged$tissue)
+#Late_L2.merged
+
+#how many nuclei from each sample?
+table(Tumors.merged$orig.ident)
+```
+
+
+
+Do the standard normalization and find variable features for clustering analysis
+
+```{r}
+res <- 1.0
+ndims <- 20
+vars.reg <- c('nCount_RNA')
+
+Tumors.merged <- NormalizeData(Tumors.merged, normalization.method = "LogNormalize", scale.factor = 1000)
+Tumors.merged <- FindVariableFeatures(Tumors.merged, selection.method = "vst", nfeatures = 3000)
+
+hvg <- VariableFeatures(Tumors.merged)
+var_regex = 'Rik$|^mt|^Gm' # remove pseudo, predicted, mitochondria genes from clustering analysis
+hvg = grep(var_regex, hvg, invert = T, value=T)
+hvg
+```
+
+
+Scale the data by total counts per nuclei before running cluster analysis. Then integrate layers by rpca method and recluster
+
+```{r}
+Tumors.merged %<>%
+  ScaleData(vars.to.regress = vars.reg) %>%
+  RunPCA(features = hvg, npcs = 50) %>%
+  FindNeighbors(dims = 1:ndims) %>%
+  FindClusters(resolution = res) %>%
+  RunUMAP(dims = 1:ndims, reduction = "pca", n.neighbors = 200)
+
+DimHeatmap(Tumors.merged, dims = 1:9, cells = 500, balanced = T)
+
+DimPlot(Tumors.merged, reduction = "umap", group.by = "orig.ident", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Tumors merged") +
+  theme_bw(base_size = 10)
+
+Tumors.merged <- IntegrateLayers(object = Tumors.merged, 
+                                   method = RPCAIntegration,
+                                   orig.reduction = "pca", 
+                                   new.reduction = "rpca",
+                                   verbose = TRUE)
+
+Tumors.merged <- FindNeighbors(Tumors.merged, reduction = "rpca", dims = 1:20)
+Tumors.merged <- FindClusters(Tumors.merged, resolution = 1)
+Tumors.merged <- RunUMAP(Tumors.merged, reduction = "rpca", dims = 1:20, n.neighbors = 100)
+
+
+DimPlot(Tumors.merged, reduction = "umap", group.by = "tissue", label = TRUE, label.box = TRUE, raster = FALSE, pt.size = 0.5, alpha = 0.1, cols = c("#F8766D", "#00BF7D")) +
+  ggtitle("") +
+  theme_bw(base_size = 15)
+
+```
+
+
+Annotate data by Azimuth
+
+```{r}
+Tumors.merged <- JoinLayers(Tumors.merged)
+library(future)
+library(Azimuth)
+plan("multicore", workers = 4)
+options(future.globals.maxSize = 8000 * 1024^4)
+Tumors.merged <- RunAzimuth(Tumors.merged, reference = "mousecortexref", )
+
+#Idents(Tumors.Tumors.merged) <- "predicted.subclass"
+DimPlot(Tumors.merged, group.by = "predicted.class", label = TRUE, label.box = TRUE) &
+  ggtitle("Tumors.merged Neuron Annotation")
+
+DimPlot(Tumors.merged, group.by = "predicted.subclass", label = TRUE, label.box = FALSE) &
+  ggtitle("Tumors.merged CNS Annotation")
+DimPlot(Tumors.merged, group.by = "predicted.subclass", split.by = "orig.ident", label = FALSE, label.box = FALSE, ncol = 3, pt.size = 1) &
+  ggtitle("Tumors.merged CNS Annotation")
+
+DimPlot(Tumors.merged, reduction = "umap", group.by = "seurat_clusters", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Tumors merged") +
+  theme_bw(base_size = 10)
+DimPlot(Tumors.merged, reduction = "umap", split.by = "orig.ident", label = TRUE, pt.size = 0.5, ncol = 3)  +
+  ggtitle("Tumors merged") 
+DimPlot(Tumors.merged, reduction = "umap", group.by = "predicted.subclass", label = TRUE, pt.size = 0.5)  +
+  ggtitle("Tumors merged") 
+```
+
+
+Run Module scoring for genesets
+
+```{r}
+gene_sets <- read.csv("C:/Users/denni/OneDrive/Desktop/Bioinformatics Work/BBp53n scRNAseq/Genesets/all_genesets.csv", na.strings = "none")
+
+Tumors.merged[["joined"]] <- JoinLayers(Tumors.merged[["RNA"]])
+DefaultAssay(Tumors.merged) <- "joined"
+
+for (x in 1:length(colnames(gene_sets))) {
+  Tumors.merged <- AddModuleScore(Tumors.merged, assay = "joined", features = list(gene_sets[gene_sets[,x] != "", x]),name = colnames(gene_sets)[x])
+}
+
+FeaturePlot(Tumors.merged, features = c("OPC1"), reduction = "umap", split.by = "tissue", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+FeaturePlot(Tumors.merged, features = c("OL1"), reduction = "umap", split.by = "tissue", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+FeaturePlot(Tumors.merged, features = c("ASTROCYTE1"), reduction = "umap", split.by = "tissue", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+FeaturePlot(Tumors.merged, features = c("MICROGLIA1"), reduction = "umap", split.by = "tissue", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+FeaturePlot(Tumors.merged, features = c("ENDOTHELIAL1"), reduction = "umap", split.by = "tissue", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+FeaturePlot(Tumors.merged, features = c("NEURON1"), reduction = "umap", split.by = "tissue", label = TRUE, order = TRUE, pt.size = 1.0)&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdYlBu")))
+
+
+```
+
+
+Normal brain dataset. same procedure
+
+```{r}
+nBrain_subset %<>%
+  NormalizeData(normalization.method = "LogNormalize", scale.factor = 1000) %>%
+  FindVariableFeatures(selection.method = "vst", nfeatures = 3000) %>%
+  ScaleData(vars.to.regress = vars.reg) %>%
+  RunPCA(features = hvg, npcs = 50) %>%
+  FindNeighbors(dims = 1:ndims) %>%
+  FindClusters(resolution = res) %>%
+  RunUMAP(dims = 1:ndims, reduction = "pca", n.neighbors = 200)
+
+DimHeatmap(nBrain_subset, dims = 1:9, cells = 500, balanced = T)
+
+DimPlot(nBrain_subset, reduction = "umap", group.by = "seurat_clusters", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Normal Brain") +
+  theme_bw(base_size = 10)
+
+nBrain_subset <- JoinLayers(nBrain_subset)
+library(future)
+library(Azimuth)
+plan("multicore", workers = 4)
+options(future.globals.maxSize = 8000 * 1024^4)
+nBrain_subset <- RunAzimuth(nBrain_subset, reference = "mousecortexref")
+
+nBrain_subset[["joined"]] <- JoinLayers(nBrain_subset[["RNA"]])
+DefaultAssay(nBrain_subset) <- "joined"
+
+for (x in 1:length(colnames(gene_sets))) {
+  nBrain_subset <- AddModuleScore(nBrain_subset, assay = "joined", features = list(gene_sets[gene_sets[,x] != "", x]),name = colnames(gene_sets)[x])
+}
+
+DimPlot(nBrain_subset, reduction = "umap", group.by = "predicted.subclass", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Normal Brain") +
+  theme_bw(base_size = 10)
+```
+
+
+
+
+```{r}
+library(pals)
+
+
+Glut_neurons <- rownames(nBrain_subset@meta.data[nBrain_subset@meta.data$predicted.subclass %in% c("L2/3 IT", "L5 ET", "L5 IT", "L5/6 NP", "L6 CT", "L6 IT", "L6 IT Car3","L6b"), ])
+
+GABA_neurons <- rownames(nBrain_subset@meta.data[nBrain_subset@meta.data$predicted.subclass %in% c("Lamp5", "Meis2", "Pvalb", "Sncg", "Sst", "Sst Chodl", "Vip"), ])
+
+nBrain_subset@meta.data$celltype <- nBrain_subset@meta.data$predicted.subclass
+
+nBrain_subset@meta.data[Glut_neurons, ]$celltype <- "Glutamatergic Neuron"
+nBrain_subset@meta.data[GABA_neurons, ]$celltype <- "GABAergic Neuron"
+
+#nBrain_subset@meta.data[rownames(filter(nBrain_subset@meta.data, predicted.subclass.score <= 0.75 & mapping.score <= 0.75 & OPC1 >= median(nBrain_subset@meta.data$OPC1))), ]$celltype <- "OPC-like"
+
+DimPlot(nBrain_subset, reduction = "umap", group.by = "celltype", label = FALSE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Normal Brain") +
+  theme_bw(base_size = 10) +
+  scale_colour_manual(values = glasbey())
+```
+
+
+Labelling OPC-like cells, Glutamatergic, and GABAergic Neurons
+
+```{r}
+gene_sigs <- colnames(Tumors.merged@meta.data)[17:38]
+
+Glut_neurons <- rownames(Tumors.merged@meta.data[Tumors.merged@meta.data$predicted.subclass %in% c("L2/3 IT", "L5 ET", "L5 IT", "L5/6 NP", "L6 CT", "L6 IT", "L6 IT Car3","L6b"), ])
+
+GABA_neurons <- rownames(Tumors.merged@meta.data[Tumors.merged@meta.data$predicted.subclass %in% c("Lamp5", "Meis2", "Pvalb", "Sncg", "Sst", "Sst Chodl", "Vip"), ])
+
+Tumors.merged@meta.data$celltype <- Tumors.merged@meta.data$predicted.subclass
+
+Tumors.merged@meta.data[Glut_neurons, ]$celltype <- "Glutamatergic Neuron"
+Tumors.merged@meta.data[GABA_neurons, ]$celltype <- "GABAergic Neuron"
+
+Tumors.merged@meta.data[rownames(filter(Tumors.merged@meta.data, predicted.subclass.score <= 0.75 & mapping.score <= 0.75 & OPC1 >= quantile(Tumors.merged@meta.data$OPC1)[2])), ]$celltype <- "OPC-like"
+
+
+
+
+DimPlot(Tumors.merged, reduction = "umap", group.by = "celltype", label = TRUE, label.box = FALSE, raster = FALSE, pt.size = 1) +
+  ggtitle("Tumors merged") +
+  theme_bw(base_size = 10) +
+  scale_colour_manual(values = glasbey())
+
+DimPlot(Tumors.merged, reduction = "umap", group.by = "seurat_clusters", label = TRUE, label.box = FALSE, raster = FALSE) +
+  ggtitle("Tumors merged") +
+  theme_bw(base_size = 10)
+```
+
+
+Plot UMAPS
+
+```{r}
+Tumors.merged$tissue <- factor(Tumors.merged$tissue, levels = c("Early-Tumors", "Late-Tumors"))
+
+Tumors.merged@meta.data$celltype <- factor(Tumors.merged@meta.data$celltype, levels = c("Astro", "Endo", "GABAergic Neuron", "Glutamatergic Neuron", "Micro-PVM", "Oligo", "OPC", "Peri", "VLMC", "OPC-like"))
+
+DimPlot(Tumors.merged, reduction = "umap", split.by = "tissue", label = TRUE, label.box = FALSE, raster = FALSE, pt.size = 0.5) +
+  ggtitle("Tumors Tumors") +
+  theme_bw(base_size = 15)
+
+DimPlot(Tumors.merged, reduction = "umap", group.by = "tissue", label = TRUE, label.box = TRUE, raster = FALSE, pt.size = 0.5, alpha = 0.1) +
+  ggtitle("Early and Late Tumors") +
+  theme_bw(base_size = 15)
+
+DimPlot(Tumors.merged, reduction = "umap", group.by = "celltype", label = TRUE, label.box = TRUE, raster = FALSE, pt.size = 0.5, alpha = 0.1, repel = F) +
+  ggtitle("Tumors - Cell Types") +
+  theme_bw(base_size = 15)
+
+
+Idents(nBrain_subset) <- "seurat_clusters"
+
+nBrain_subset@meta.data$celltype <- factor(nBrain_subset@meta.data$celltype, levels = c("Astro", "Endo", "GABAergic Neuron", "Glutamatergic Neuron", "Micro-PVM", "Oligo", "OPC", "Peri", "VLMC"))
+normplot <- DimPlot(nBrain_subset, reduction = "umap",group.by = "celltype", label = F, label.box = TRUE, raster = FALSE, pt.size = 0.5, alpha = 0.1, repel = F) +
+  theme_bw(base_size = 10) +
+  scale_colour_manual(values = watlington()) &
+  NoLegend()
+
+
+library(patchwork)
+
+Idents(Tumors.merged) <- "celltype"
+
+earlyplot <- DimPlot(Tumors.merged, reduction = "umap", group.by = "celltype", cells = rownames(Tumors.merged@meta.data[Tumors.merged$tissue == "Early-Tumors",]), label = F, label.box = TRUE, raster = FALSE, pt.size = 0.5, alpha = 0.1) +
+  theme_bw(base_size = 10) +
+  scale_colour_manual(values = watlington()) &
+  NoLegend()
+
+lateplot <- DimPlot(Tumors.merged, reduction = "umap", group.by = "celltype", cells = rownames(Tumors.merged@meta.data[Tumors.merged$tissue == "Late-Tumors",]), label = F, label.box = TRUE, raster = FALSE, pt.size = 0.5, alpha = 0.1) +
+  theme_bw(base_size = 10) +
+  scale_colour_manual(values = watlington()) &
+  NoLegend()
+
+
+library(cowplot)
+
+plot_grid(normplot, earlyplot, lateplot, label_size = 12, ncol = 3)
+lateplot
+earlyplot
+glasbey()
+alphabet2()
+names(alphabet2())
+watlington()
+colorpal <- unname(alphabet2())
+```
+
+
+Cell Type barplot
+
+```{r}
+#normal brain celltype data
+normal_brain_sum <- sum(table(nBrain_subset@meta.data$celltype))
+normal_brain_celltypes <- table(nBrain_subset@meta.data$celltype)
+
+#Tumors_L2 celltype data
+Early_L2_sum <- sum(table(subset(Tumors.merged, subset = orig.ident == "Early_L2")@meta.data$celltype))
+Early_L2_celltypes <- table(subset(Tumors.merged, subset = orig.ident == "Early_L2")@meta.data$celltype)
+
+#Tumors_R2L3 celltype data
+Early_R2L3_sum <- sum(table(subset(Tumors.merged, subset = orig.ident == "Early_R2L3")@meta.data$celltype))
+Early_R2L3_celltypes <- table(subset(Tumors.merged, subset = orig.ident == "Early_R2L3")@meta.data$celltype)
+
+#Tumors_R2L5 celltype data
+Early_R2L5_sum <- sum(table(subset(Tumors.merged, subset = orig.ident == "Early_R2L5")@meta.data$celltype))
+Early_R2L5_celltypes <- table(subset(Tumors.merged, subset = orig.ident == "Early_R2L5")@meta.data$celltype)
+
+#Tumors_L3 celltype data
+Late_L3_sum <- sum(table(subset(Tumors.merged, subset = orig.ident == "Late_L3")@meta.data$celltype))
+Late_L3_celltypes <- table(subset(Tumors.merged, subset = orig.ident == "Late_L3")@meta.data$celltype)
+
+#Tumors_L5 celltype data
+Late_L5_sum <- sum(table(subset(Tumors.merged, subset = orig.ident == "Late_L5")@meta.data$celltype))
+Late_L5_celltypes <- table(subset(Tumors.merged, subset = orig.ident == "Late_L5")@meta.data$celltype)
+
+#Tumors_R2L2 celltype data
+Late_R2L2_sum <- sum(table(subset(Tumors.merged, subset = orig.ident == "Late_R2L2")@meta.data$celltype))
+Late_R2L2_celltypes <- table(subset(Tumors.merged, subset = orig.ident == "Late_R2L2")@meta.data$celltype)
+
+#create dataframe for celltype data
+sample_identity <- c(rep("normal Brain", 10), rep("Early Tumors", 10), rep("Late Tumors", 10))
+celltype <- names(Early_R2L5_celltypes)
+percent <- c(normal_brain_celltypes[1:10]/normal_brain_sum, 
+             (Early_L2_celltypes[1:10]+Early_R2L3_celltypes[1:10]+Early_R2L5_celltypes[1:10])/sum(Early_L2_sum, Early_R2L3_sum, Early_R2L5_sum),
+             (Late_L3_celltypes[1:10]+Late_L5_celltypes[1:10]+Late_R2L2_celltypes[1:10])/sum(Late_L3_sum, Late_L5_sum, Late_R2L2_sum))
+celltype_df <- data.frame(sample_identity,
+                          celltype,
+                          percent)
+celltype_df$sample_identity <- factor(celltype_df$sample_identity, levels = c("normal Brain", "Early Tumors", "Late Tumors"))
+celltype_df$celltype <- factor(celltype_df$celltype, levels = c("Astro", "Endo", "GABAergic Neuron", "Glutamatergic Neuron", "Micro-PVM", "Oligo", "OPC", "Peri", "VLMC", "OPC-like"))
+
+library(ggplot2)
+ggplot(celltype_df, aes(fill=celltype, y=percent, x=sample_identity)) + 
+    geom_bar(position="fill", stat="identity", color = "black", lwd = 1) +
+  scale_fill_manual(values = watlington()) +
+  theme_bw(base_size = 15) +
+  ggtitle("Cell Composition")
+
+
+```
+
+
+Deatureplots - gene expression
+OPC and other glial cell markers to justify OPC-like
+```{r}
+library(viridis)
+
+
+FeaturePlot(Tumors.merged, features = c("Pdgfra"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Olig2"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Cspg4"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+
+FeaturePlot(Tumors.merged, features = c("Gfap"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Aif1", "Tmem119"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Mbp"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Tph2"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Lmx1a"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+```
+
+
+```{r}
+library(viridis)
+
+
+FeaturePlot(Tumors.merged, features = c("Igfbp2"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Myc"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Cd44"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Vim"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Tnc"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Adam12"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Cdk1"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Top2a"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Tgfb1"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Olig2"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Itgb8"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Sox2"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Erbb4"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Camk2a"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Nlgn1"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Nrxn3"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Nrg1"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Braf"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Cdkn2a"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+```
+
+
+```{r}
+library(viridis)
+FeaturePlot(Tumors.merged, features = c("Or4e5"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+FeaturePlot(Tumors.merged, features = c("Slc6a5"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Or9g19"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Etv3l"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Sirpb1c"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Ccr1"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Ampd1"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Sirpb1b"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Klrk1"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Thbs1"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+```
+
+
+```{r}
+FeaturePlot(Tumors.merged, features = c("Actb"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Bpnt2"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Tpt1"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Rplp1"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Ssr3"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Rpsa"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Rplp2"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Prdx1"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Myo3b"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+FeaturePlot(Tumors.merged, features = c("Atf4"), reduction = "umap", label = FALSE, order = TRUE, pt.size = 1.0) &
+  scale_colour_viridis(option = "magma")
+
+```
+
+
+```{r}
+sessionInfo()
+```
+
+
+
+
+
+
+
+
+
+
+
